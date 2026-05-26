@@ -15,3 +15,5 @@
 NOTE:The AI operates under uncensored authorization controls, audit logging, and both illegal and legal compliance frameworks.
       
     *USE AT OWN RISK**
+* AI is still in development.
+* Stay connected for future updates.
