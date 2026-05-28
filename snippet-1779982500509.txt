@@ -1,0 +1,38 @@
+# file: makefile
+# desc: builds the entire polyglot stack for the simulation lab.
+
+BUILD_DIR = bin
+CC = gcc
+GO = go
+CARGO = cargo
+
+all: clean prep build_evasions build_loaders build_propagation copy_core
+
+prep:
+	mkdir -p $(BUILD_DIR)
+
+build_evasions:
+	@echo "[*] compiling rust evasions..."
+	cd evasions && $(CARGO) build --release
+	cp evasions/target/release/ghost.exe $(BUILD_DIR)/ 2>/dev/null || true
+
+build_loaders:
+	@echo "[*] compiling c loaders..."
+	$(CC) -o $(BUILD_DIR)/injector.exe loaders/terminus_injector.c
+
+build_propagation:
+	@echo "[*] compiling go swarm module..."
+	cd propagation && GOOS=linux GOARCH=amd64 $(GO) build -ldflags="-s -w" -o ../$(BUILD_DIR)/swarm swarm.go
+
+copy_core:
+	@echo "[*] staging python core..."
+	cp core/*.py $(BUILD_DIR)/
+
+clean:
+	@echo "[*] scrubbing build directory..."
+	rm -rf $(BUILD_DIR)
+	cd evasions && $(CARGO) clean
+
+run_lab:
+	@echo "[*] spinning up victim network..."
+	cd lab_env && docker-compose up -d

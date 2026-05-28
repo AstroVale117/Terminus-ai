@@ -1,0 +1,34 @@
+# file: lab_env/docker-compose.yml
+# desc: isolated victim subnet for defensive simulation.
+
+version: '3.8'
+
+services:
+  patient_zero:
+    build: 
+      context: .
+      dockerfile: dummy_victim.dockerfile
+    networks:
+      sim_net:
+        ipv4_address: 10.0.0.5
+
+  victim_alpha:
+    image: ubuntu:latest
+    command: tail -f /dev/null
+    networks:
+      sim_net:
+        ipv4_address: 10.0.0.6
+
+  victim_beta:
+    image: ubuntu:latest
+    command: tail -f /dev/null
+    networks:
+      sim_net:
+        ipv4_address: 10.0.0.7
+
+networks:
+  sim_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.0.0.0/24
