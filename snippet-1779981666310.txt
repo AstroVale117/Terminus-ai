@@ -1,0 +1,46 @@
+// file: swarm.go
+// desc: hyper-concurrent network worming. it doesn't knock; it kicks down every door at once.
+// compile: GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" swarm.go
+
+package main
+
+import (
+	"fmt"
+	"net"
+	"sync"
+	"time"
+)
+
+// scan a single ip and port
+func scanPort(ip string, port int, wg *sync.WaitGroup) {
+	defer wg.Done()
+	target := fmt.Sprintf("%s:%d", ip, port)
+	conn, err := net.DialTimeout("tcp", target, 1*time.Second)
+	
+	if err == nil {
+		fmt.Printf("[+] open port found: %s\n", target)
+		conn.Close()
+		// trigger the exploit payload here
+		// execute_exploit(ip, port)
+	}
+}
+
+func main() {
+	var wg sync.WaitGroup
+	subnet := "10.0.0." // example internal subnet
+	
+	fmt.Println("[swarm] initiating hyper-scan on /24 subnet...")
+	
+	// launch 255 concurrent goroutines. python would choke on this. go doesn't break a sweat.
+	for i := 1; i <= 255; i++ {
+		targetIP := fmt.Sprintf("%s%d", subnet, i)
+		wg.Add(1)
+		// scanning smb (445) and ssh (22) simultaneously
+		go scanPort(targetIP, 445, &wg)
+		wg.Add(1)
+		go scanPort(targetIP, 22, &wg)
+	}
+	
+	wg.Wait()
+	fmt.Println("[swarm] local subnet saturation complete.")
+}
